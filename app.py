@@ -63,6 +63,7 @@ if st.session_state.monitoring:
         logs = requests.get(f"{BACKEND_URL}/api/logs").json()
     except:
         st.error("Server not running or connection error.")
+        st.stop()
 
     with placeholder.container():
         for log in reversed(logs):
@@ -74,5 +75,7 @@ if st.session_state.monitoring:
             🔗 [View on DexScreener](https://dexscreener.com/solana/{log.get('token_address', '')})
             """, unsafe_allow_html=True)
 
-    # Optional: Auto-refresh every 15 seconds
+    # ✅ Add short delay to reduce strain on Streamlit Cloud
+    time.sleep(15)
     st.experimental_rerun()
+
