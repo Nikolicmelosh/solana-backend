@@ -22,7 +22,6 @@ log_buffer = []
 global_wallets = []
 global_filters = {}
 running_flag = False
-
 TOKEN_CACHE = {}
 
 def log_entry(entry):
@@ -72,12 +71,22 @@ def calculate_value(token_address, token_amount):
 def should_show(tx_data):
     try:
         filters = global_filters
-        return (
-            tx_data['amount'] >= filters.get('amount', 0) and
-            tx_data['market_cap'] >= filters.get('mcap', 0) and
-            tx_data['liquidity'] >= filters.get('liquidity', 0) and
-            tx_data['volume'] >= filters.get('volume', 0)
-        )
+        if (
+            tx_data['amount'] < filters.get('amount', 0) or
+            tx_data['market_cap'] < filters.get('mcap', 0) or
+            tx_data['liquidity'] < filters.get('liquidity', 0) or
+            tx_data['volume'] < filters.get('volume', 0)
+        ):
+            return False
+
+        # Filter by transaction type
+        tx_type_filter = filters.get("tx_type", "All")
+        if tx_type_filter == "Buys" and tx_data['type'] != "BUY":
+            return False
+        if tx_type_filter == "Sells" and tx_data['type'] != "SELL":
+            return False
+
+        return True
     except:
         return True
 
