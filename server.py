@@ -102,7 +102,7 @@ def monitor_wallets():
                         name, age_str, mcap, liq, vol, age_min, price = fetch_token_info(mint)
 
                         entry = {
-                            "timestamp": datetime.utcfromtimestamp(tx['timestamp']).strftime('%Y-%m-%d %H:%M:%S'),
+                            "timestamp": datetime.fromtimestamp(tx['timestamp'], tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
                             "type": direction,
                             "amount": round(value, 4),
                             "token": name,
@@ -119,6 +119,10 @@ def monitor_wallets():
             except Exception as e:
                 log_entry({"timestamp": time.strftime("%Y-%m-%d %H:%M:%S"), "type": "error", "text": str(e)})
         time.sleep(15)
+
+@app.route("/")
+def home():
+    return "✅ Wallet Tracker backend is running."
 
 @app.route("/api/start", methods=["POST"])
 def start_monitoring():
@@ -141,4 +145,6 @@ def get_logs():
     return jsonify(log_buffer)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    import os
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
