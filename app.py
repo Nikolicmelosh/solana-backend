@@ -3,8 +3,9 @@ import requests
 import time
 
 st.set_page_config(page_title="Eye.See.V1 Trial Version Made by Melosh", layout="wide")
-
 st.title("Eye.See.V1 Trial Version Made by Melosh")
+
+BACKEND_URL = "https://wallet-tracker-tdsa.onrender.com"
 
 wallets_input = st.text_area("Enter wallet addresses (comma-separated)", height=100)
 min_amount = st.number_input("Minimum USD Amount", value=20.0)
@@ -13,12 +14,11 @@ min_volume = st.number_input("Minimum Volume", value=10000.0)
 min_liquidity = st.number_input("Minimum Liquidity", value=10000.0)
 min_age = st.number_input("Minimum Age (minutes)", value=0)
 max_age = st.number_input("Maximum Age (minutes)", value=1440)
-
-# Add transaction type filter
 transaction_type = st.selectbox("Transaction Type", ["All", "Buys", "Sells"])
-
-# Add sound alert toggle
 sound_alert = st.checkbox("🔔 Sound Alert", value=False)
+
+if "monitoring" not in st.session_state:
+    st.session_state.monitoring = False
 
 col1, col2 = st.columns(2)
 with col1:
@@ -34,33 +34,45 @@ with col1:
             "tx_type": transaction_type,
             "sound_alert": sound_alert
         }
-        requests.post("http://localhost:5000/api/start", json={"wallets": wallets, "filters": filters})
-        st.success("Monitoring started!")
+        try:
+            r = requests.post(f"{BACKEND_URL}/api/start", json={"wallets": wallets, "filters": filters})
+            if r.status_code == 200:
+                st.success("Monitoring started!")
+                st.session_state.monitoring = True
+            else:
+                st.error("Failed to start monitoring.")
+        except:
+            st.error("Server connection error.")
 
 with col2:
     if st.button("🛑 Stop Monitoring"):
-        requests.post("http://localhost:5000/api/stop")
-        st.warning("Monitoring stopped.")
+        try:
+            requests.post(f"{BACKEND_URL}/api/stop")
+            st.warning("Monitoring stopped.")
+            st.session_state.monitoring = False
+        except:
+            st.error("Server connection error.")
 
 st.markdown("---")
 st.subheader("📢 Live Logs")
 
-placeholder = st.empty()
-
-while True:
+if st.session_state.monitoring:
+    placeholder = st.empty()
+    logs = []
     try:
-        logs = requests.get("http://localhost:5000/api/logs").json()
-        with placeholder.container():
-            for log in reversed(logs):
-                st.markdown(f"""
-                **[{log['timestamp']}] {log['type']}**: {log['amount']} | Token: `{log['token']}`  
-                💰 Market Cap: {log['market_cap']} | 📊 Volume: {log['volume']} | 💧 Liquidity: {log['liquidity']} | Age: {log['age']}  
-                🔍 Wallet Address: `{log['wallet']}`
-                """)
-                # Show token address and DexScreener link if available
-                if log.get("token_address"):
-                    dexscreener_url = f"https://dexscreener.com/solana/{log['token_address']}"
-                    st.markdown(f"🪙 Token Address: `{log['token_address']}`<br/>🔗 [View on DexScreener]({dexscreener_url})", unsafe_allow_html=True)
+        logs = requests.get(f"{BACKEND_URL}/api/logs").json()
     except:
         st.error("Server not running or connection error.")
-    time.sleep(15)
+
+    with placeholder.container():
+        for log in reversed(logs):
+            st.markdown(f"""
+            **[{log['timestamp']}] {log['type']}**: {log['amount']} | Token: `{log['token']}`  
+            💰 Market Cap: {log['market_cap']} | 📊 Volume: {log['volume']} | 💧 Liquidity: {log['liquidity']} | Age: {log['age']}  
+            🔍 Wallet Address: `{log['wallet']}`  
+            🪙 Token Address: `{log.get('token_address', 'N/A')}`  
+            🔗 [View on DexScreener](https://dexscreener.com/solana/{log.get('token_address', '')})
+            """, unsafe_allow_html=True)
+
+    # Optional: Auto-refresh every 15 seconds
+    st.experimental_rerun()
